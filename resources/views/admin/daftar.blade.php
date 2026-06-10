@@ -8,6 +8,20 @@
     <p class="mb-0">Kelola status pemesanan customer (pending, dikonfirmasi, selesai, batal)</p>
 </div>
 
+{{-- Alert sukses / error --}}
+@if(session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle"></i> {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 {{-- Filter Status --}}
 <div class="card shadow-sm mb-4">
     <div class="card-body">
@@ -51,22 +65,50 @@
         </thead>
         <tbody>
             @forelse($bookings as $key => $booking)
+            @php
+                $tanggal    = \Carbon\Carbon::parse($booking->tanggal_berangkat);
+                $today      = \Carbon\Carbon::today();
+                $sudahLewat = $tanggal->lte($today);
+                $allowed    = $booking->allowed_statuses;
+
+                $statusConfig = [
+                    'pending'      => ['label' => '⏳ Pending',       'class' => 'bg-warning text-dark'],
+                    'dikonfirmasi' => ['label' => '✅ Dikonfirmasi',   'class' => 'bg-info text-white'],
+                    'selesai'      => ['label' => '🎉 Selesai',        'class' => 'bg-success text-white'],
+                    'batal'        => ['label' => '❌ Batal',           'class' => 'bg-danger text-white'],
+                ];
+                $current = $statusConfig[$booking->status] ?? ['label' => $booking->status, 'class' => 'bg-secondary text-white'];
+            @endphp
             <tr class="booking-row" data-status="{{ $booking->status }}">
                 <td>{{ $key + 1 }}</td>
+
+                {{-- Customer --}}
                 <td>
                     <strong>{{ $booking->nama_lengkap }}</strong><br>
                     <small class="text-muted">{{ $booking->user->email }}</small><br>
                     <small><i class="fas fa-phone"></i> {{ $booking->nomor_telepon }}</small>
                 </td>
+
+                {{-- Paket Trip --}}
                 <td>
                     <strong>{{ $booking->trip->nama }}</strong><br>
                     <small class="text-muted">{{ $booking->trip->lokasi }}</small>
                 </td>
-                <td>{{ $booking->tanggal_berangkat->format('d/m/Y') }}</td>
+
+                {{-- Tanggal Berangkat --}}
+                <td>
+                    {{ $tanggal->format('d/m/Y') }}
+                    @if(!$sudahLewat)
+                        <br><small class="text-primary"><i class="fas fa-clock"></i> {{ $tanggal->diffForHumans() }}</small>
+                    @else
+                        <br><small class="text-muted"><i class="fas fa-check"></i> Sudah lewat</small>
+                    @endif
+                </td>
+
                 <td class="text-center">{{ $booking->jumlah_peserta }} orang</td>
                 <td>Rp {{ number_format($booking->total_harga, 0, ',', '.') }}</td>
 
-                {{-- Kolom Catatan --}}
+                {{-- Catatan --}}
                 <td style="max-width: 180px;">
                     @if($booking->catatan)
                         <div class="p-2 rounded" style="background:#fffde7; border-left: 3px solid #f59e0b; font-size: 0.82rem; white-space: pre-line;">
@@ -77,26 +119,19 @@
                     @endif
                 </td>
 
+                {{-- Badge Status --}}
                 <td>
-                    @php
-                        $statusClass = match($booking->status) {
-                            'pending'      => 'bg-warning text-dark',
-                            'dikonfirmasi' => 'bg-info text-white',
-                            'selesai'      => 'bg-success text-white',
-                            'batal'        => 'bg-danger text-white',
-                            default        => 'bg-secondary text-white'
-                        };
-                        $statusText = match($booking->status) {
-                            'pending'      => '⏳ Pending',
-                            'dikonfirmasi' => '✅ Dikonfirmasi',
-                            'selesai'      => '🎉 Selesai',
-                            'batal'        => '❌ Batal',
-                            default        => $booking->status
-                        };
-                    @endphp
-                    <span class="badge {{ $statusClass }} px-2 py-2">{{ $statusText }}</span>
+                    <span class="badge {{ $current['class'] }} px-2 py-2">{{ $current['label'] }}</span>
+
+                    {{-- Info kenapa selesai diblokir --}}
+                    @if(!$sudahLewat && $booking->status !== 'selesai' && $booking->status !== 'batal')
+                        <br><small class="text-muted mt-1 d-block">
+                            <i class="fas fa-info-circle"></i> Selesai aktif setelah {{ $tanggal->format('d/m/Y') }}
+                        </small>
+                    @endif
                 </td>
 
+                {{-- Dokumen --}}
                 <td>
                     <div class="d-flex flex-column gap-1">
                         @if($booking->ktp_path)
@@ -114,23 +149,41 @@
                     </div>
                 </td>
 
+                {{-- Aksi --}}
                 <td>
                     <div class="d-flex flex-column gap-2">
                         <form action="{{ route('admin.booking.status', $booking->id) }}" method="POST"
                               class="d-flex gap-1">
                             @csrf
                             @method('PUT')
-                            <select name="status" class="form-select form-select-sm" style="width: 130px;">
-                                <option value="pending"      {{ $booking->status == 'pending'      ? 'selected' : '' }}>⏳ Pending</option>
-                                <option value="dikonfirmasi" {{ $booking->status == 'dikonfirmasi' ? 'selected' : '' }}>✅ Dikonfirmasi</option>
-                                <option value="selesai"      {{ $booking->status == 'selesai'      ? 'selected' : '' }}>🎉 Selesai</option>
-                                <option value="batal"        {{ $booking->status == 'batal'        ? 'selected' : '' }}>❌ Batal</option>
+                            <select name="status" class="form-select form-select-sm" style="width: 145px;">
+                                @foreach($statusConfig as $value => $cfg)
+                                    @if(in_array($value, $allowed))
+                                        <option value="{{ $value }}"
+                                            {{ $booking->status === $value ? 'selected' : '' }}>
+                                            {{ $cfg['label'] }}
+                                        </option>
+                                    @else
+                                        {{-- Tampilkan tapi disabled dengan keterangan --}}
+                                        <option value="{{ $value }}" disabled
+                                            style="color:#aaa;"
+                                            title="{{ $value === 'selesai' && !$sudahLewat ? 'Trip belum dilaksanakan' : 'Tidak bisa diubah' }}">
+                                            {{ $cfg['label'] }}
+                                            @if($value === 'selesai' && !$sudahLewat)
+                                                (belum waktunya)
+                                            @elseif($value === 'batal' && $booking->status === 'selesai')
+                                                (sudah selesai)
+                                            @endif
+                                        </option>
+                                    @endif
+                                @endforeach
                             </select>
                             <button type="submit" class="btn btn-primary btn-sm"
-                                    onclick="return confirm('Ubah status booking ini?')">
+                                    onclick="return confirmStatusChange(this)">
                                 <i class="fas fa-save"></i>
                             </button>
                         </form>
+
                         <a href="https://wa.me/62{{ preg_replace('/[^0-9]/', '', ltrim($booking->nomor_telepon, '0')) }}"
                            target="_blank" class="btn btn-success btn-sm">
                             <i class="fab fa-whatsapp"></i> Hubungi
@@ -151,20 +204,34 @@
 </div>
 
 <script>
+    // Filter status
     const statusFilter = document.getElementById('statusFilter');
     const rows = document.querySelectorAll('.booking-row');
 
-    statusFilter.addEventListener('change', function() {
-        const selectedStatus = this.value;
+    statusFilter.addEventListener('change', function () {
+        const selected = this.value;
         rows.forEach(row => {
             const rowStatus = row.getAttribute('data-status');
-            row.style.display = (selectedStatus === 'all' || rowStatus === selectedStatus) ? '' : 'none';
+            row.style.display = (selected === 'all' || rowStatus === selected) ? '' : 'none';
         });
     });
 
     function resetFilter() {
         statusFilter.value = 'all';
         rows.forEach(row => { row.style.display = ''; });
+    }
+
+    // Konfirmasi sebelum simpan perubahan status
+    function confirmStatusChange(btn) {
+        const select = btn.closest('form').querySelector('select[name="status"]');
+        const labels = {
+            pending:      'Pending',
+            dikonfirmasi: 'Dikonfirmasi',
+            selesai:      'Selesai',
+            batal:        'Batal',
+        };
+        const label = labels[select.value] || select.value;
+        return confirm(`Ubah status menjadi "${label}"?`);
     }
 </script>
 @endsection
