@@ -82,7 +82,7 @@
     {{-- ===================== PANEL KANAN ===================== --}}
     <div class="col-md-4">
 
-        {{-- Tombol Edit — HANYA ADMIN, pakai data-bs-toggle supaya pasti jalan --}}
+        {{-- Tombol Edit — HANYA ADMIN --}}
         @auth
         @if(Auth::user()->isAdmin())
         <div class="mb-3">
@@ -208,19 +208,19 @@
                                 <label class="form-label fw-semibold">Nama Bank</label>
                                 <input type="text" name="bank_name" id="bankNameInput" class="form-control"
                                     placeholder="Contoh: BRI / BCA / Mandiri / BSI"
-                                    value="{{ session('transaksi_info.bank_name', 'BRI') }}">
+                                    value="{{ $bankName ?? 'BRI' }}">
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Nomor Rekening</label>
                                 <input type="text" name="bank_number" id="bankNumberInput" class="form-control"
                                     placeholder="Contoh: 1234567890"
-                                    value="{{ session('transaksi_info.bank_number', '1234567890') }}">
+                                    value="{{ $bankNumber ?? '1234567890' }}">
                             </div>
                             <div class="mb-0">
                                 <label class="form-label fw-semibold">Atas Nama</label>
                                 <input type="text" name="bank_owner" id="bankOwnerInput" class="form-control"
                                     placeholder="Contoh: Najwa Salsabila"
-                                    value="{{ session('transaksi_info.bank_owner', 'Admin NajaTrip') }}">
+                                    value="{{ $bankOwner ?? 'Admin NajaTrip' }}">
                             </div>
                         </div>
                     </div>
@@ -230,8 +230,7 @@
                         <label class="form-label fw-semibold">
                             <i class="fas fa-credit-card text-success me-1"></i> Cara Pembayaran
                         </label>
-                        <textarea name="payment_info" id="paymentInfoInput" class="form-control" rows="4"
-                            >{{ session('transaksi_info.payment_info', 'DP 50% dari total harga<br>Sisa pembayaran dapat diinformasikan via WhatsApp<br>Admin akan menghubungi Anda setelah booking dikonfirmasi') }}</textarea>
+                        <textarea name="payment_info" id="paymentInfoInput" class="form-control" rows="4">{{ $paymentInfo ?? 'DP 50% dari total harga<br>Sisa pembayaran dapat diinformasikan via WhatsApp<br>Admin akan menghubungi Anda setelah booking dikonfirmasi' }}</textarea>
                         <small class="text-muted">Gunakan &lt;br&gt; untuk baris baru</small>
                     </div>
 
@@ -240,8 +239,7 @@
                         <label class="form-label fw-semibold">
                             <i class="fas fa-file-contract text-warning me-1"></i> Syarat & Ketentuan
                         </label>
-                        <textarea name="terms_conditions" id="termsInput" class="form-control" rows="5"
-                            >{{ session('transaksi_info.terms_conditions', 'Booking dianggap sah setelah upload bukti transfer<br>Pembatalan H-7: refund 50%<br>Pembatalan H-3: refund 25%<br>Pembatalan H-1: tidak ada refund') }}</textarea>
+                        <textarea name="terms_conditions" id="termsInput" class="form-control" rows="5">{{ $termsConditions ?? 'Booking dianggap sah setelah upload bukti transfer<br>Pembatalan H-7: refund 50%<br>Pembatalan H-3: refund 25%<br>Pembatalan H-1: tidak ada refund' }}</textarea>
                         <small class="text-muted">Gunakan &lt;br&gt; untuk baris baru</small>
                     </div>
 
@@ -252,7 +250,7 @@
                         </label>
                         <input type="text" name="whatsapp_number" id="whatsappInput" class="form-control"
                             placeholder="Contoh: 6282340188130"
-                            value="{{ session('transaksi_info.whatsapp_number', '6282340188130') }}">
+                            value="{{ $whatsappNumber ?? '6282340188130' }}">
                         <small class="text-muted">Format: 62xxxxxxxxxx (tanpa tanda + atau 0 di depan)</small>
                     </div>
 
@@ -263,7 +261,7 @@
                         </label>
                         <input type="text" name="contact_text" id="contactTextInput" class="form-control"
                             placeholder="Contoh: Butuh bantuan? Hubungi Admin"
-                            value="{{ session('transaksi_info.contact_text', 'Butuh bantuan? Hubungi Admin') }}">
+                            value="{{ $contactText ?? 'Butuh bantuan? Hubungi Admin' }}">
                     </div>
 
                 </form>
@@ -402,18 +400,18 @@ document.getElementById('btnSimpanInfo').addEventListener('click', async functio
         const result = await response.json();
 
         if (result.success) {
-            // Update tampilan rekening — teks biasa, tanpa tombol salin
+            // Update tampilan rekening
             document.getElementById('dispBankName').innerText   = formData.get('bank_name')   || '';
             document.getElementById('dispBankNumber').innerText = formData.get('bank_number') || '';
             document.getElementById('dispBankOwner').innerText  = formData.get('bank_owner')  || '';
 
             // Update teks lain
-            document.getElementById('paymentInfoDisplay').innerHTML = (formData.get('payment_info')     || '').replace(/\n/g, '<br>');
+            document.getElementById('paymentInfoDisplay').innerHTML = (formData.get('payment_info') || '').replace(/\n/g, '<br>');
             document.getElementById('termsDisplay').innerHTML       = (formData.get('terms_conditions') || '').replace(/\n/g, '<br>');
             document.getElementById('contactTextDisplay').innerText = formData.get('contact_text') || '';
             document.getElementById('whatsappLink').href            = 'https://wa.me/' + (formData.get('whatsapp_number') || '');
 
-            // Tutup modal pakai Bootstrap API
+            // Tutup modal
             bootstrap.Modal.getInstance(document.getElementById('editInfoModal')).hide();
             alert('✅ Informasi berhasil disimpan!');
         } else {
